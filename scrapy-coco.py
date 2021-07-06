@@ -1,14 +1,50 @@
+# for scrapping 
 import time
+from datetime import date
 from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support.ui import Select
 import pandas as pd
 import json
 
+# for database
+from sqlalchemy import create_engine, Column, Integer, String, Boolean, DateTime
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker, relationship
+
+Base = declarative_base()
+
+class Day(Base):
+    __tablename__= "days"
+    
+    mes = Column('mes', Integer)
+    dia = Column('dia', Integer)
+    inhabil = Column('inhabil', Boolean)
+    razon = Column('razon', String(10000))
+    created_at = Column('created_at', DateTime, default=date.today())
+    id = Column('id', Integer, primary_key=True)
+
+
+engine = create_engine('mysql://root:Gatiger222!@127.0.0.1:3306/mysql', echo=True)
+Base.metadata.create_all(bind=engine)
+Session = sessionmaker(bind=engine)
+
+session = Session()
+
+
+# Setting up webdriver
+
 path = "./chromedriver/chromedriver"
-driver = webdriver.Chrome(path)
+chrome_options = Options()
+chrome_options.add_argument("--disable-extensions")
+chrome_options.add_argument("--disable-gpu")
+chrome_options.add_argument("--no-sandbox")
+chrome_options.add_argument("--headless")
+
+driver = webdriver.Chrome(path, options=chrome_options)
 driver.get("https://www.justiciacordoba.gob.ar/justiciacordoba/servicios/DiasInhabiles.aspx")
 
-
+# Scraping
 # Trabajando la lista de meses y el boton de buscar
 meses_dd = Select(driver.find_element_by_xpath('.//*[@id="ddlMeses"]'))
 buscar_btn = driver.find_element_by_xpath('.//*[@id="btnBuscar"]')
@@ -92,22 +128,24 @@ for i in range(1,13):
 # print(json.dumps(lista_completa))
 
 # transformo al objeto final
+
 final_list = []
+session.execute('delete from days')
+session.commit()
 for month in lista_completa:
-    days = []
+
     for day in month["dias_semana"]:
         if day in month["dias_inhabiles"]:
             razon = month["razones"][day]
-            days.append({'dia': day, 'inhabil': True, 'razon': razon})
-        else:
-            days.append({'dia': day, 'inhabil': False})
-    final_list.append(
-        {
-            'mes': month["mes"],
-            'dias': days
-            })
 
-print(json.dumps(final_list))
+            db_day = Day(mes=month["mes"],dia=day ,inhabil=True, razon=razon)
+        else:
+            db_day = Day(mes=month["mes"],dia=day, inhabil=False)
+        session.add(db_day)
+
+session.commit()
+session.close()
+print("success")
 driver.quit()
 
 
