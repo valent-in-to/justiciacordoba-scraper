@@ -25,7 +25,7 @@ class Day(Base):
     id = Column('id', Integer, primary_key=True)
 
 
-engine = create_engine('mysql://root:Gatiger222!@127.0.0.1:3306/mysql', echo=True)
+engine = create_engine('mysql://user:password!@localhost:3306/mysql', echo=True)
 Base.metadata.create_all(bind=engine)
 Session = sessionmaker(bind=engine)
 
